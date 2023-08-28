@@ -47,7 +47,9 @@ func main() {
 		// fmt.Printf("Tipo: %x \n\n", buf[12:14])
 
 		eth := layes.UnWrapEthernet(&buf)
-		fmt.Println(eth)
+		ipv4 := layes.UnWrapIpv4FromEthernet(eth)
+		// fmt.Println(eth)
+		fmt.Println(ipv4)
 	}
 }
 

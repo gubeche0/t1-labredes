@@ -20,6 +20,15 @@ type EthernetLayer struct {
 
 // }
 
+func NewEthernetLayer(origem [6]byte, destino [6]byte, data []byte) EthernetLayer {
+	return EthernetLayer{
+		Origem:  origem,
+		Destino: destino,
+		Tipo:    [2]byte{0x08, 0x00},
+		Data:    data,
+	}
+}
+
 func UnWrapEthernet(bytes *[]byte) EthernetLayer {
 	var raw EthernetLayer
 	copy(raw.Destino[:], (*bytes)[0:6])

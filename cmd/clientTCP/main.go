@@ -41,19 +41,25 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		// fmt.Printf("% X\n", buf[:numRead])
-		// fmt.Printf("MAC Destino: %x:%x:%x:%x:%x:%x \n", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5])
-		// fmt.Printf("MAC Origen: %x:%x:%x:%x:%x:%x \n\n", buf[6], buf[7], buf[8], buf[9], buf[10], buf[11])
-		// fmt.Printf("Tipo: %x \n\n", buf[12:14])
 
 		eth := layes.UnWrapEthernet(&buf)
 		ipv4 := layes.UnWrapIpv4FromEthernet(eth)
-		udp, err := layes.UnWrapUdpFromIpv4(ipv4)
-		if err == nil {
-			fmt.Println(eth)
-			fmt.Println(ipv4)
-			fmt.Println(udp)
+		if ipv4.Protocol == layes.IPV4_PROTOCOL_TCP {
+			// tcp, err := layes.UnWrapTcpFromIpv4(ipv4)
+			// if err == nil {
+			// 	fmt.Println(eth)
+			// 	fmt.Println(ipv4)
+			// 	fmt.Println(tcp)
+			// }
+		} else if ipv4.Protocol == layes.IPV4_PROTOCOL_UDP {
+			udp, err := layes.UnWrapUdpFromIpv4(ipv4)
+			if err == nil {
+				fmt.Println(eth)
+				fmt.Println(ipv4)
+				fmt.Println(udp)
+			}
 		}
+
 	}
 }
 

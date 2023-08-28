@@ -2,6 +2,11 @@ package layes
 
 import "fmt"
 
+const (
+	IPV4_PROTOCOL_TCP = 0x06
+	IPV4_PROTOCOL_UDP = 0x11
+)
+
 type Ipv4Layer struct {
 	Version  uint8
 	IHL      uint8

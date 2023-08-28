@@ -33,7 +33,7 @@ func UnWrapUdp(bytes *[]byte) (*UdpLayer, error) {
 }
 
 func UnWrapUdpFromIpv4(ipv4 Ipv4Layer) (*UdpLayer, error) {
-	if ipv4.Protocol != 0x11 {
+	if ipv4.Protocol != IPV4_PROTOCOL_UDP {
 		return nil, fmt.Errorf("Protocolo inválido")
 	}
 

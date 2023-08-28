@@ -82,3 +82,12 @@ func (i Ipv4Layer) String() string {
 
 	return str
 }
+
+func (i Ipv4Layer) ChecksumIsValid() bool {
+	return false
+}
+
+func (i *Ipv4Layer) CalculateChecksum() {
+	// i.Checksum = 0
+
+}

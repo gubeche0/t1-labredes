@@ -48,8 +48,12 @@ func main() {
 
 		eth := layes.UnWrapEthernet(&buf)
 		ipv4 := layes.UnWrapIpv4FromEthernet(eth)
-		// fmt.Println(eth)
-		fmt.Println(ipv4)
+		udp, err := layes.UnWrapUdpFromIpv4(ipv4)
+		if err == nil {
+			fmt.Println(eth)
+			fmt.Println(ipv4)
+			fmt.Println(udp)
+		}
 	}
 }
 

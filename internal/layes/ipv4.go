@@ -29,7 +29,7 @@ func NewIpv4Layer() Ipv4Layer {
 		Flags:    0,
 		Fragment: 0,
 		TTL:      64,
-		Protocol: 0,
+		Protocol: 0, // 0x06 TCP, 0x11 UDP
 		Checksum: 0,
 		Origem:   [4]byte{0, 0, 0, 0},
 		Destino:  [4]byte{0, 0, 0, 0},
@@ -60,7 +60,8 @@ func UnWrapIpv4FromEthernet(eth EthernetLayer) Ipv4Layer {
 }
 
 func (i Ipv4Layer) String() string {
-	str := fmt.Sprintf("Versão: %d \n", i.Version)
+	str := "IPv4 Layer\n"
+	str += fmt.Sprintf("Versão: %d \n", i.Version)
 	str += fmt.Sprintf("IHL: %d \n", i.IHL)
 	str += fmt.Sprintf("TOS: %d \n", i.TOS)
 	str += fmt.Sprintf("Length: %d \n", i.Length)

@@ -47,3 +47,14 @@ func (e EthernetLayer) String() string {
 
 	return str
 }
+
+func (e EthernetLayer) ToBytes() []byte {
+	var bytes []byte
+
+	bytes = append(bytes, e.Destino[:]...)
+	bytes = append(bytes, e.Origem[:]...)
+	bytes = append(bytes, e.Tipo[:]...)
+	bytes = append(bytes, e.Data[:]...)
+
+	return bytes
+}

@@ -43,6 +43,9 @@ func main() {
 		}
 
 		eth := layes.UnWrapEthernet(&buf)
+		// if eth.Origem != [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00} {
+		// 	continue
+		// }
 		ipv4 := layes.UnWrapIpv4FromEthernet(eth)
 		if ipv4.Protocol == layes.IPV4_PROTOCOL_TCP {
 			// tcp, err := layes.UnWrapTcpFromIpv4(ipv4)

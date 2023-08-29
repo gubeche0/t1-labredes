@@ -60,3 +60,32 @@ func (u UdpLayer) ChecksumIsValid() bool {
 func (u *UdpLayer) CalculateChecksum() {
 	u.Checksum = 0
 }
+
+func (u *UdpLayer) CalculateLength() {
+	u.Length = uint16(len(u.Data) + 8) // 8 = UDP Header Size
+}
+
+func (u *UdpLayer) Prepare() {
+	u.CalculateLength()
+	u.CalculateChecksum()
+}
+
+func (u UdpLayer) ToBytes() []byte {
+	var bytes []byte
+
+	bytes = append(bytes, byte(u.SourcePort>>8))
+	bytes = append(bytes, byte(u.SourcePort))
+
+	bytes = append(bytes, byte(u.DestinationPort>>8))
+	bytes = append(bytes, byte(u.DestinationPort))
+
+	bytes = append(bytes, byte(u.Length>>8))
+	bytes = append(bytes, byte(u.Length))
+
+	bytes = append(bytes, byte(u.Checksum>>8))
+	bytes = append(bytes, byte(u.Checksum))
+
+	bytes = append(bytes, u.Data[:]...)
+
+	return bytes
+}

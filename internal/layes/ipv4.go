@@ -91,3 +91,22 @@ func (i *Ipv4Layer) CalculateChecksum() {
 	// i.Checksum = 0
 
 }
+
+// @TODO: Test
+func (i Ipv4Layer) ToBytes() []byte {
+	var bytes []byte
+
+	bytes = append(bytes, i.Version<<4|i.IHL)
+	bytes = append(bytes, i.TOS)
+	bytes = append(bytes, uint8(i.Length>>8), uint8(i.Length))
+	bytes = append(bytes, uint8(i.ID>>8), uint8(i.ID))
+	bytes = append(bytes, i.Flags<<5|uint8(i.Fragment>>8), uint8(i.Fragment))
+	bytes = append(bytes, i.TTL)
+	bytes = append(bytes, i.Protocol)
+	bytes = append(bytes, uint8(i.Checksum>>8), uint8(i.Checksum))
+	bytes = append(bytes, i.Origem[:]...)
+	bytes = append(bytes, i.Destino[:]...)
+	bytes = append(bytes, i.Data[:]...)
+
+	return bytes
+}

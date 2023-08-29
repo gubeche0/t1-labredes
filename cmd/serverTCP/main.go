@@ -23,8 +23,6 @@ func main() {
 		return
 	}
 
-	// syscall.Sendto()
-
 	fmt.Println("Socket created")
 	fmt.Println("fd:", fd)
 
@@ -36,8 +34,7 @@ func main() {
 		return
 	}
 
-	// syscall.BindToDevice(fd, if_info.Name)
-	err = syscall.BindToDevice(fd, "eth0")
+	err = syscall.BindToDevice(fd, if_info.Name)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -50,12 +47,13 @@ func main() {
 
 	// syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
 
-	eth := layes.EthernetLayer{
-		Origem:  MacSource,
-		Destino: MacDest,
-		Tipo:    [2]byte{0x08, 0x00},
-		Data:    []byte{},
-	}
+	ipv4 := layes.NewIpv4Layer()
+	ipv4.Protocol = layes.IPV4_PROTOCOL_UDP
+	ipv4.Destino = [4]byte{192, 168, 0, 1}
+	ipv4.Origem = [4]byte{0, 0, 0, 0}
+	// ipv4.Checksum = 0x0000
+
+	eth := layes.NewEthernetLayer(MacSource, MacDest, ipv4.ToBytes())
 
 	sockAddr := syscall.SockaddrLinklayer{
 		Protocol: syscall.ETH_P_ALL,

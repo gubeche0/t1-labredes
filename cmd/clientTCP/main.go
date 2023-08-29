@@ -61,6 +61,9 @@ func main() {
 				fmt.Println(ipv4)
 				fmt.Println(udp)
 			}
+		} else {
+			fmt.Println(eth)
+			fmt.Println(ipv4)
 		}
 
 	}

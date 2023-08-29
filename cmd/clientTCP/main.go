@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"syscall"
@@ -8,7 +9,15 @@ import (
 	"github.com/gubeche0/raw-socket-t1-labredes/internal/layes"
 )
 
+var (
+	MessagePort = flag.Int("message-port", 9000, "Port to send message")
+	CommandPort = flag.Int("command-port", 9001, "Port to send command")
+
+	OutputPort = flag.Int("out-port", 9090, "Port to send messages and commands")
+)
+
 func main() {
+	flag.Parse()
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htons(syscall.ETH_P_ALL)))
 
 	// net.DialUnix()

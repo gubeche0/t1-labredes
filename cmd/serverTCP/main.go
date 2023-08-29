@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"syscall"
@@ -9,12 +10,15 @@ import (
 )
 
 var (
+	MessagePort = flag.Int("message-port", 9000, "Port to recive message")
+	CommandPort = flag.Int("command-port", 9001, "Port to recive command")
+
 	MacSource = [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	// MacSource = [6]byte{0x7e, 0xa1, 0x05, 0x5c, 0x37, 0x98}
-	MacDest = [6]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	MacDest   = [6]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 )
 
 func main() {
+	flag.Parse()
 	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htons(syscall.ETH_P_ALL)))
 	// fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, syscall.ETH_P_ALL)
 

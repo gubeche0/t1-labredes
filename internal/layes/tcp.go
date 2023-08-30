@@ -18,7 +18,10 @@ type TcpLayer struct {
 }
 
 func NewTcpLayer() *TcpLayer {
-	return &TcpLayer{}
+	return &TcpLayer{
+		DataOffset: 5,
+		WindowSize: 0x0001, // @TODO: Check this value
+	}
 }
 
 func UnWrapTcp(bytes *[]byte) (*TcpLayer, error) {
@@ -75,6 +78,7 @@ func (tcp *TcpLayer) CalculateChecksum() {
 
 // @TODO: Implement
 func (tcp *TcpLayer) Prepare() {
+	tcp.DataOffset = 5
 	tcp.CalculateChecksum()
 }
 

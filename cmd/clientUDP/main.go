@@ -68,6 +68,7 @@ func main() {
 	ipv4.Origem = [4]byte{0, 0, 0, 0}
 	// ipv4.Checksum = 0x0000
 	ipv4.Data = udp.ToBytes()
+	ipv4.Prepare()
 
 	eth := layes.NewEthernetLayer(MacSource, MacDest, ipv4.ToBytes())
 

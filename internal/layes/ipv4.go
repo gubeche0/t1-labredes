@@ -89,7 +89,12 @@ func (i Ipv4Layer) ChecksumIsValid() bool {
 
 func (i *Ipv4Layer) CalculateChecksum() {
 	// i.Checksum = 0
+}
 
+func (i *Ipv4Layer) Prepare() {
+	i.IHL = 5
+	i.Length = uint16(len(i.Data)) + 20
+	i.CalculateChecksum()
 }
 
 // @TODO: Test

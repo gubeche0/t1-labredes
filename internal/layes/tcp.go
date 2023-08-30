@@ -72,3 +72,45 @@ func (tcp TcpLayer) ChecksumIsValid() bool {
 func (tcp *TcpLayer) CalculateChecksum() {
 	tcp.Checksum = 0
 }
+
+// @TODO: Implement
+func (tcp *TcpLayer) Prepare() {
+	tcp.CalculateChecksum()
+}
+
+func (tcp TcpLayer) ToBytes() []byte {
+	var bytes []byte
+
+	bytes = append(bytes, byte(tcp.SourcePort>>8))
+	bytes = append(bytes, byte(tcp.SourcePort))
+
+	bytes = append(bytes, byte(tcp.DestinationPort>>8))
+	bytes = append(bytes, byte(tcp.DestinationPort))
+
+	bytes = append(bytes, byte(tcp.SequenceNumber>>24))
+	bytes = append(bytes, byte(tcp.SequenceNumber>>16))
+	bytes = append(bytes, byte(tcp.SequenceNumber>>8))
+	bytes = append(bytes, byte(tcp.SequenceNumber))
+
+	bytes = append(bytes, byte(tcp.AckNumber>>24))
+	bytes = append(bytes, byte(tcp.AckNumber>>16))
+	bytes = append(bytes, byte(tcp.AckNumber>>8))
+	bytes = append(bytes, byte(tcp.AckNumber))
+
+	bytes = append(bytes, byte(tcp.DataOffset<<4|tcp.Reserved))
+
+	bytes = append(bytes, byte(tcp.Flags))
+
+	bytes = append(bytes, byte(tcp.WindowSize>>8))
+	bytes = append(bytes, byte(tcp.WindowSize))
+
+	bytes = append(bytes, byte(tcp.Checksum>>8))
+	bytes = append(bytes, byte(tcp.Checksum))
+
+	bytes = append(bytes, byte(tcp.UrgentPointer>>8))
+	bytes = append(bytes, byte(tcp.UrgentPointer))
+
+	bytes = append(bytes, tcp.Data...)
+
+	return bytes
+}

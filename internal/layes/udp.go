@@ -47,6 +47,7 @@ func (u UdpLayer) String() string {
 	str += fmt.Sprintf("Length: %d\n", u.Length)
 	str += fmt.Sprintf("Checksum: %d. (Valid: %t)\n", u.Checksum, u.ChecksumIsValid())
 	str += fmt.Sprintf("Data: %d Bytes \n", len(u.Data))
+	// str += fmt.Sprintf("Data: % X \n", u.Data)
 
 	return str
 }

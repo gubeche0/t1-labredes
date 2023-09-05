@@ -8,8 +8,8 @@ const (
 )
 
 type Ipv4Layer struct {
-	Version  uint8
-	IHL      uint8
+	Version  uint8 // 4 bits
+	IHL      uint8 // 4 bits
 	TOS      uint8
 	Length   uint16
 	ID       uint16

@@ -87,7 +87,12 @@ func (i Ipv4Layer) ChecksumIsValid() bool {
 	return false
 }
 
-func (i *Ipv4Layer) CalculateChecksum() {
+func (i Ipv4Layer) CalculateChecksum() uint16 {
+	// i.Checksum = 0
+	return 0
+}
+
+func (i *Ipv4Layer) SetChecksum() {
 	// i.Checksum = 0
 }
 

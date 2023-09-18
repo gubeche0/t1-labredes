@@ -106,7 +106,7 @@ func (i *Ipv4Layer) Prepare() {
 func (i Ipv4Layer) ToBytes() []byte {
 	var bytes []byte
 
-	bytes = append(bytes, i.Version<<4|i.IHL)
+	bytes = append(bytes, (i.Version<<4)|i.IHL)
 	bytes = append(bytes, i.TOS)
 	bytes = append(bytes, uint8(i.Length>>8), uint8(i.Length))
 	bytes = append(bytes, uint8(i.ID>>8), uint8(i.ID))

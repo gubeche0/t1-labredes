@@ -47,7 +47,7 @@ func (u UdpLayer) String() string {
 	str += fmt.Sprintf("Length: %d\n", u.Length)
 	str += fmt.Sprintf("Checksum: %d. (Valid: %t)\n", u.Checksum, u.ChecksumIsValid())
 	str += fmt.Sprintf("Data: %d Bytes \n", len(u.Data))
-	// str += fmt.Sprintf("Data: % X \n", u.Data)
+	str += fmt.Sprintf("Data: % X \n", u.GetData())
 
 	return str
 }
@@ -59,7 +59,8 @@ func (u UdpLayer) ChecksumIsValid() bool {
 
 // @TODO: Implement
 func (u *UdpLayer) CalculateChecksum() {
-	u.Checksum = 0
+	// u.Checksum = 0
+	u.Checksum = csum(u.ToBytes())
 }
 
 func (u *UdpLayer) CalculateLength() {
@@ -69,6 +70,10 @@ func (u *UdpLayer) CalculateLength() {
 func (u *UdpLayer) Prepare() {
 	u.CalculateLength()
 	u.CalculateChecksum()
+}
+
+func (u UdpLayer) GetData() []byte {
+	return u.Data[:u.Length-8]
 }
 
 func (u UdpLayer) ToBytes() []byte {
@@ -86,7 +91,7 @@ func (u UdpLayer) ToBytes() []byte {
 	bytes = append(bytes, byte(u.Checksum>>8))
 	bytes = append(bytes, byte(u.Checksum))
 
-	bytes = append(bytes, u.Data[:]...)
+	bytes = append(bytes, u.GetData()...)
 
 	return bytes
 }

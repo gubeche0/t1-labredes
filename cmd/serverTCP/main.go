@@ -1,87 +1,49 @@
 package main
 
 import (
+	"bufio"
 	"flag"
-	"fmt"
-	"os"
-	"syscall"
-
-	"github.com/gubeche0/raw-socket-t1-labredes/internal/layes"
+	"log"
+	"net"
 )
 
 var (
 	MessagePort = flag.Int("message-port", 9000, "Port to recive message")
 	CommandPort = flag.Int("command-port", 9001, "Port to recive command")
+	User        = flag.String("user", "", "User to connect")
 
-	OutputPort = flag.Int("out-port", 9090, "Port to send messages and commands")
+	Listen = flag.String("listen", "0:0:0:0", "Listen to connect")
 )
 
 func main() {
 	flag.Parse()
-	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htons(syscall.ETH_P_ALL)))
 
-	// net.DialUnix()
+	serve, err := net.Listen("tcp", ":8081")
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal("Error to create server: ", err)
 	}
 
-	// err = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	// for {
+	conn, err := serve.Accept()
+	if err != nil {
+		log.Fatal("Error to accept connection: ", err)
+	}
 
-	//
+	// go handleConnection(conn)
 
-	// syscall.Bind(fd, &syscall.SockaddrInet4{})
-
-	fmt.Println("Socket created")
-	fmt.Println("fd:", fd)
-
-	defer syscall.Close(fd)
-
-	f := os.NewFile(uintptr(fd), fmt.Sprintf("fd %d", fd))
-
-	// net.Dial(network, address)
+	defer conn.Close()
+	log.Println("Connection accepted")
 
 	for {
-		buf := make([]byte, 1024)
-		_, err := f.Read(buf)
+		message, err := bufio.NewReader(conn).ReadBytes('\n')
 		if err != nil {
-			fmt.Println(err)
+			log.Println("Error to read message: ", err)
+			break
 		}
 
-		eth := layes.UnWrapEthernet(&buf)
-		// if eth.Origem != [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00} {
-		// 	continue
-		// }
-		ipv4 := layes.UnWrapIpv4FromEthernet(eth)
-		if ipv4.Protocol == layes.IPV4_PROTOCOL_TCP {
-			tcp, err := layes.UnWrapTcpFromIpv4(ipv4)
-			if err != nil {
-				continue
-			}
+		log.Println("Message recived: ", string(message))
 
-			if tcp.DestinationPort == uint16(*MessagePort) || tcp.DestinationPort == uint16(*CommandPort) {
-				fmt.Println(eth)
-				fmt.Println(ipv4)
-				fmt.Println(tcp)
-			}
-		} else if ipv4.Protocol == layes.IPV4_PROTOCOL_UDP {
-			// udp, err := layes.UnWrapUdpFromIpv4(ipv4)
-			// if err == nil {
-			// 	fmt.Println(eth)
-			// 	fmt.Println(ipv4)
-			// 	fmt.Println(udp)
-			// }
-		} else {
-			// fmt.Println(eth)
-			// fmt.Println(ipv4)
-		}
-
+		// conn.Write(message)
 	}
-}
-
-func htons(i uint16) uint16 {
-	return (i<<8)&0xff00 | i>>8
+	// }
 }

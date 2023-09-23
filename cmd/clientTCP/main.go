@@ -1,127 +1,132 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"log"
+	"math/rand"
 	"net"
-	"syscall"
+	"os"
 
-	"github.com/gubeche0/raw-socket-t1-labredes/internal/layes"
+	"github.com/gubeche0/raw-socket-t1-labredes/internal/chat"
 )
 
 var (
-	MessagePort = flag.Int("message-port", 9000, "Port to recive message")
-	CommandPort = flag.Int("command-port", 9001, "Port to recive command")
+	MessagePort = flag.Int("message-port", 9000, "Port to send message")
+	CommandPort = flag.Int("command-port", 9001, "Port to send command")
+	User        = flag.String("user", "", "User to connect")
 
-	OutputPort = flag.Int("out-port", 9090, "Port to send messages and commands")
-
-	InterfaceName = flag.String("interface", "eth0", "Interface to use")
-
-	MacSource = [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
-	MacDest   = [6]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	Destination = flag.String("destination", "localhost", "Destination to send message")
 )
 
 func main() {
 	flag.Parse()
-	fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, int(htons(syscall.ETH_P_ALL)))
-	// fd, err := syscall.Socket(syscall.AF_PACKET, syscall.SOCK_RAW, syscall.ETH_P_ALL)
+	if *User == "" {
+		// Generate random user
+		*User = fmt.Sprintf("Anonymous_%d", rand.Intn(1000))
+	}
 
+	client := chat.ClientChat{
+		User: *User,
+		Conn: TCPConn{
+			Address:     *Destination,
+			MessagePort: *MessagePort,
+			CommandPort: *CommandPort,
+		},
+	}
+
+	err := client.Connect()
 	if err != nil {
-		fmt.Println(err)
-		return
+		panic(err)
 	}
-
-	fmt.Println("Socket created")
-	fmt.Println("fd:", fd)
-
-	defer syscall.Close(fd)
-
-	if_info, err := net.InterfaceByName(*InterfaceName)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	err = syscall.BindToDevice(fd, if_info.Name)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	// err = syscall.SetLsfPromisc("eth0", true)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-
-	// err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, 0)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// err = syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1)
-	// err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.IP_HDRINCL, 1)
-
-	tcp := layes.NewTcpLayer()
-	// udp.Data = make([]byte, 1472) // Max size of UDP packet ???
-	tcp.SourcePort = uint16(*OutputPort)
-	tcp.DestinationPort = uint16(*CommandPort)
-	tcp.Data = []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05}
-	// tcp.Data = make([]byte, 1472)
-	tcp.Prepare()
-
-	ipv4 := layes.NewIpv4Layer()
-	ipv4.Protocol = layes.IPV4_PROTOCOL_TCP
-	ipv4.Destino = [4]byte{192, 168, 0, 1}
-	ipv4.Origem = [4]byte{0, 0, 0, 0}
-	// ipv4.Checksum = 0x0000
-	ipv4.Data = tcp.ToBytes()
-
-	eth := layes.NewEthernetLayer(MacSource, MacDest, ipv4.ToBytes())
-
-	sockAddr := syscall.SockaddrLinklayer{
-		// Protocol: htons(syscall.ETH_P_ALL),
-		Protocol: syscall.ETH_P_ALL,
-		// Protocol: syscall.IPPROTO_TCP,
-		// Protocol: syscall.,
-		// Ifindex:  2,
-		Ifindex: if_info.Index,
-		// Halen:   6,
-
-		// Hatype:  syscall.ARPHRD_ETHER,
-		// Pkttype: syscall.PACKET_HOST,
-		Pkttype: 0,
-
-		// Addr:     MacDest[:],
-	}
-
-	// net.ListenIP()
-	// syscall.RawSockaddrUnix{
-
-	// }
-	copy(sockAddr.Addr[:], MacDest[:])
-	copy(sockAddr.Addr[:], []byte{6})
-
-	// err = syscall.Bind(fd, &sockAddr)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-
-	// syscall.Write(fd, eth.ToBytes())
-	err = syscall.Sendto(fd, eth.ToBytes(), 0, &sockAddr)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// f := os.NewFile(uintptr(fd), fmt.Sprintf("fd %d", fd))
 }
 
-func htons(i uint16) uint16 {
-	return (i<<8)&0xff00 | i>>8
+type TCPConn struct {
+	Address     string
+	MessagePort int
+	CommandPort int
+
+	readMessageChannel            *chan chat.MessageInterface
+	readControllerMessageChannel  *chan chat.ControllerMessage
+	writeMessageChannel           *chan chat.MessageInterface
+	writeControllerMessageChannel *chan chat.ControllerMessage
 }
+
+func (c TCPConn) Conection() error {
+
+	c.handleControllerMessage()
+
+	readMessageChannel := make(chan chat.MessageInterface)
+	c.readMessageChannel = &readMessageChannel
+	return nil
+}
+
+func (c TCPConn) GetReadMessageChannel() <-chan chat.MessageInterface {
+	return *c.readMessageChannel
+}
+
+func (c TCPConn) GetReadControllerMessageChannel() <-chan chat.ControllerMessage {
+	return *c.readControllerMessageChannel
+}
+
+func (c TCPConn) GetWriteMessageChannel() chan<- chat.MessageInterface {
+	return *c.writeMessageChannel
+}
+
+func (c TCPConn) GetWriteControllerMessageChannel() chan<- chat.ControllerMessage {
+	return *c.writeControllerMessageChannel
+}
+
+func (c TCPConn) Close() error {
+
+	close(*c.readMessageChannel)
+	close(*c.readControllerMessageChannel)
+	close(*c.writeMessageChannel)
+	close(*c.writeControllerMessageChannel)
+
+	return nil
+}
+
+func (c *TCPConn) handleControllerMessage() {
+	readControllerMessageChannel := make(chan chat.ControllerMessage)
+	c.readControllerMessageChannel = &readControllerMessageChannel
+
+	writeControllerMessageChannel := make(chan chat.ControllerMessage)
+	c.writeControllerMessageChannel = &writeControllerMessageChannel
+
+	conexao, erro1 := net.Dial("tcp", "127.0.0.1:8081")
+	if erro1 != nil {
+		fmt.Println(erro1)
+		os.Exit(3)
+	}
+
+	go func() {
+		message := <-*c.writeControllerMessageChannel
+		conexao.Write(message.Wrap())
+
+		// conexao.Read(make([]byte, 1))
+		// conexao.Read(make([]byte, 1))
+		mensagem, err3 := bufio.NewReader(conexao).ReadBytes('\n')
+		// bufio.NewScanner(conexao).Scan()
+		// mensagem := bufio.NewScanner(conexao).Bytes()
+		if err3 != nil {
+			fmt.Println(err3)
+			os.Exit(3)
+		}
+		fmt.Println("Mensagem do servidor: ", mensagem)
+		msg, err := chat.UnWrapControllerMessageRaw(&mensagem)
+		if err != nil {
+			log.Print("Error to unwrap message")
+		}
+
+		*c.readControllerMessageChannel <- msg
+	}()
+}
+
+// Conection() error
+// GetReadMessageChannel() <-chan MessageInterface
+// GetReadControllerMessageChannel() <-chan ControllerMessage
+// GetWriteMessageChannel() chan<- MessageInterface
+// GetWriteControllerMessageChannel() chan<- ControllerMessage
+// Close() error

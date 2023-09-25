@@ -1,13 +1,15 @@
 package chat
 
 const (
-	MESSAGE_TYPE_TEXT uint8 = iota
-	MESSAGE_TYPE_FILE
-	MESSAGE_TYPE_CONTROLLE
-)
+	MESSAGE_TYPE_REQUEST_JOIN uint8 = iota
+	MESSAGE_TYPE_REQUEST_JOIN_RESPONSE
 
-type Protocol interface {
-	ListenMessage(port int) (<-chan MessageInterface, error)
-	ListenControllerMessage(port int) (<-chan ControllerMessage, error)
-	GetProtocolName() string
-}
+	MESSAGE_TYPE_TEXT
+	MESSAGE_TYPE_TEXT_RESPONSE
+
+	MESSAGE_TYPE_FILE
+	MESSAGE_TYPE_FILE_RESPONSE
+
+	MESSAGE_TYPE_LIST_USERS
+	MESSAGE_TYPE_LIST_USERS_RESPONSE
+)

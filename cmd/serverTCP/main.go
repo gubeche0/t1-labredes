@@ -1,10 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"flag"
-	"log"
-	"net"
+	"os"
+
+	"github.com/gubeche0/raw-socket-t1-labredes/internal/chat"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -12,38 +14,22 @@ var (
 	CommandPort = flag.Int("command-port", 9001, "Port to recive command")
 	User        = flag.String("user", "", "User to connect")
 
-	Listen = flag.String("listen", "0:0:0:0", "Listen to connect")
+	Listen = flag.String("listen", "127.0.0.1", "Listen to connect")
 )
 
 func main() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	flag.Parse()
 
-	serve, err := net.Listen("tcp", ":8081")
-	if err != nil {
-		log.Fatal("Error to create server: ", err)
+	serv := chat.ServerTCP{
+		Address:     *Listen,
+		CommandPort: *CommandPort,
+		MessagePort: *MessagePort,
 	}
 
-	// for {
-	conn, err := serve.Accept()
-	if err != nil {
-		log.Fatal("Error to accept connection: ", err)
-	}
-
-	// go handleConnection(conn)
-
-	defer conn.Close()
-	log.Println("Connection accepted")
-
-	for {
-		message, err := bufio.NewReader(conn).ReadBytes('\n')
-		if err != nil {
-			log.Println("Error to read message: ", err)
-			break
-		}
-
-		log.Println("Message recived: ", string(message))
-
-		// conn.Write(message)
-	}
-	// }
+	serv.StartListenAndServer()
 }

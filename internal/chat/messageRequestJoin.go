@@ -23,6 +23,10 @@ func (m MessageRequestJoin) Wrap() []byte {
 	return bytes
 }
 
+func (m MessageRequestJoin) GetType() uint8 {
+	return MESSAGE_TYPE_REQUEST_JOIN
+}
+
 func UnWrapMessageRequestJoin(rawMessage *[]byte) (*MessageRequestJoin, error) {
 	var msg MessageRequestJoin
 

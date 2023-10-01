@@ -2,6 +2,8 @@ package chat
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -46,6 +48,11 @@ func (c *ClientChat) Connect() error {
 		fmt.Print(">> ")
 
 		text, _ := reader.ReadString('\n')
+		if len(text) == 0 {
+			continue
+		} else if len(text) == 1 && text[0] == '\n' {
+			continue
+		}
 
 		msg := MessageText{
 			Origin: c.User,
@@ -69,17 +76,32 @@ func (c *ClientChat) Connect() error {
 
 func (c ClientChat) listenMessage() {
 	for {
-		message, err := bufio.NewReader(c.conn).ReadBytes('\n')
-		if err == io.EOF {
-			log.Fatal().Msg("Connection closed")
-		} else if err != nil {
-			log.Warn().Err(err).Msg("Error to read message")
-			return
+		buf := new(bytes.Buffer)
+
+		var messageType uint8
+		var messageSize uint32
+		err := binary.Read(c.conn, binary.BigEndian, &messageType)
+		if !checkErrorMessageClient(err) {
+			break
 		}
-		if len(message) == 0 {
-			continue
+		err = binary.Read(c.conn, binary.BigEndian, &messageSize)
+		if !checkErrorMessageClient(err) {
+			break
 		}
-		fmt.Print("Server: " + string(message))
+
+		_, err = io.CopyN(buf, c.conn, int64(messageSize-5)) // 5 bytes for message type and message size
+		if !checkErrorMessageClient(err) {
+			break
+		}
+
+		raw := make([]byte, 5, messageSize)
+		raw[0] = messageType
+		binary.BigEndian.PutUint32(raw[1:], messageSize)
+		raw = append(raw, buf.Bytes()...)
+
+		log.Debug().Msgf("Message recived: %v", raw)
+
+		c.handlerMessage(messageType, &raw)
 	}
 }
 
@@ -87,6 +109,51 @@ func (c ClientChat) HandleControllerMessage() {
 
 }
 
+func (c ClientChat) handlerMessage(messageType uint8, message *[]byte) {
+	switch messageType {
+	case MESSAGE_TYPE_RESPONSE_JOIN:
+		msg, err := UnWrapMessageResponseJoin(message)
+		if err != nil {
+			log.Warn().Err(err).Msg("Error to unwrap message")
+			return
+		}
+		if !msg.Succeeded {
+			log.Fatal().Msg("Error to join")
+			return
+		}
+
+		log.Info().Msgf("Connected to server with user: %s", msg.UserName)
+
+	case MESSAGE_TYPE_TEXT:
+		msg, err := UnWrapMessageText(message)
+		if err != nil {
+			log.Warn().Err(err).Msg("Error to unwrap message")
+			return
+		}
+		if msg.Origin == c.User {
+			return
+		}
+
+		fmt.Printf("%s: %s\n", msg.Origin, msg.Text)
+
+	default:
+		log.Warn().Msgf("Message type %d not implemented", messageType)
+	}
+
+}
+
 func (c ClientChat) SendMessage(message MessageInterface) {
 
+}
+
+func checkErrorMessageClient(err error) bool {
+	if err == io.EOF {
+		log.Fatal().Msg("Connection closed")
+		return false
+	} else if err != nil {
+		log.Err(err).Msg("Error to read message")
+		return false
+	}
+
+	return true
 }

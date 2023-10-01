@@ -104,7 +104,10 @@ func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.
 		if _, ok := s.Users[messageRequestJoin.UserName]; ok {
 			log.Warn().Msgf("User %s already connected", messageRequestJoin.UserName)
 
-			// TODO: Send error message
+			conn.Write(MessageResponseJoin{
+				UserName:  messageRequestJoin.UserName,
+				Succeeded: false,
+			}.Wrap())
 			return
 		}
 
@@ -114,6 +117,11 @@ func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.
 			MessageConn: conn,
 		}
 		s.userMux.Unlock()
+
+		s.sendMessageTo(messageRequestJoin.UserName, MessageResponseJoin{
+			UserName:  messageRequestJoin.UserName,
+			Succeeded: true,
+		})
 
 	case MESSAGE_TYPE_TEXT:
 		messageText, err := UnWrapMessageText(message)

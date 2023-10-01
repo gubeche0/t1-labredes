@@ -14,8 +14,8 @@ var (
 type MessageInterface interface {
 	// UnWrap(bytes *[]byte) Message
 	Wrap() []byte
-	GetOrigin() string
-	GetTarget() string
+	// GetOrigin() string
+	// GetTarget() string
 	GetType() uint8
 }
 

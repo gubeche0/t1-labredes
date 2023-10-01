@@ -3,6 +3,7 @@ package chat
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"errors"
 
 	"github.com/rs/zerolog/log"
@@ -39,10 +40,7 @@ func (m MessageText) Wrap() []byte {
 
 	bytes = append(bytes, MESSAGE_TYPE_TEXT)
 
-	bytes = append(bytes, byte(length>>24))
-	bytes = append(bytes, byte(length>>16))
-	bytes = append(bytes, byte(length>>8))
-	bytes = append(bytes, byte(length))
+	bytes = binary.BigEndian.AppendUint32(bytes, length)
 
 	bytes = append(bytes, []byte(m.Origin)...)
 	bytes = append(bytes, '\n')
@@ -54,18 +52,29 @@ func (m MessageText) Wrap() []byte {
 	return bytes
 }
 
+func (m MessageText) GetOrigin() string {
+	return m.Origin
+}
+
+func (m MessageText) GetTarget() string {
+	return m.Target
+}
+
+func (m MessageText) GetType() uint8 {
+	return MESSAGE_TYPE_TEXT
+}
+
 func UnWrapMessageText(rawMessage *[]byte) (*MessageText, error) {
 	var msg MessageText
 
 	messageType := (*rawMessage)[0]
-	if messageType != MESSAGE_TYPE_TEXT {
+	if uint8(messageType) != MESSAGE_TYPE_TEXT {
 		return nil, ErrInvalidMessageType
 	}
 
-	reader := bufio.NewReader(bytes.NewReader((*rawMessage)[1:]))
+	msg.MessageLen = binary.BigEndian.Uint32((*rawMessage)[1:5])
 
-	// msg.MessageLen = uint32((*rawMessage)[1])<<24 | uint32((*rawMessage)[2])<<16 | uint32((*rawMessage)[3])<<8 | uint32((*rawMessage)[4])
-	// msg.Origin = bytes.ReadBytes('\n')
+	reader := bufio.NewReader(bytes.NewReader((*rawMessage)[1:]))
 
 	origin, err := reader.ReadBytes('\n')
 	if err != nil {
@@ -81,14 +90,9 @@ func UnWrapMessageText(rawMessage *[]byte) (*MessageText, error) {
 
 	text, err := reader.ReadBytes('\n')
 	if err != nil {
-
 		return nil, err
 	}
 	msg.Text = string(text[:len(text)-1])
-
-	// bytes.NewReader((*rawMessage)[5:]).ReadBytes('\n')
-
-	// msg.Origin, err :=
 
 	return &msg, nil
 }

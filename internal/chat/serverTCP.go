@@ -12,10 +12,16 @@ import (
 
 type ServerTCP struct {
 	// Protocol    Protocol
-	Users       map[string]net.Conn
+	Users       map[string]connection
 	Address     string
 	MessagePort int
 	CommandPort int
+}
+
+type connection struct {
+	UserName    string
+	MessageConn net.Conn
+	CommandConn net.Conn
 }
 
 func (s *ServerTCP) StartListenAndServer() error {
@@ -32,21 +38,23 @@ func (s *ServerTCP) StartListenAndServer() error {
 			log.Fatal().Msgf("Error to accept connection: %s", err.Error())
 		}
 
-		go s.HandleConnection(conn)
+		go s.handleConnection(conn)
 	}
-
 }
 
-func (s ServerTCP) HandleConnection(conn net.Conn) {
+func (s *ServerTCP) handleConnection(conn net.Conn) {
 	defer conn.Close()
 	log.Info().Msg("Connection accepted")
+	// s.Users[""] = connection{
+	// 	MessageConn: conn,
+	// }
 
 	for {
 		buf := new(bytes.Buffer)
 
 		var messageType uint8
 		var messageSize uint32
-		err := binary.Read(conn, binary.LittleEndian, &messageType)
+		err := binary.Read(conn, binary.BigEndian, &messageType)
 		if !checkErrorMessage(err) {
 			break
 		}
@@ -60,42 +68,49 @@ func (s ServerTCP) HandleConnection(conn net.Conn) {
 
 		// message, err := bufio.NewReader(conn).ReadBytes('\n')
 		_, err = io.CopyN(buf, conn, int64(messageSize))
-		checkErrorMessage(err)
-
-		// log.Debug().Msgf("Message recived: %v", (buf.String()))
-		log.Debug().Msgf("Message recived: %v", (buf.Bytes()))
-
-		// raw := append([]byte{messageType}, buf.Bytes()...)
-		raw := []byte{messageType}
-		sizeRaw := make([]byte, 4)
-		binary.LittleEndian.PutUint32(sizeRaw, messageSize)
-		raw = append(raw, sizeRaw...)
-		raw = append(raw, buf.Bytes()...)
-
-		messageText, err := UnWrapMessageText(&raw)
-		if err != nil {
-			log.Err(err).Msg("Error to unwrap message")
-			continue
-		}
-
-		log.Info().Msgf("%s send to %s: %s", messageText.Origin, messageText.Target, messageText.Text)
-
-		_, err = conn.Write(buf.Bytes())
-		if err != nil {
-			log.Err(err).Msg("Error to write message")
+		if !checkErrorMessage(err) {
 			break
 		}
+
+		raw := make([]byte, 5+messageSize)
+		raw[0] = messageType
+		binary.BigEndian.PutUint32(raw[1:], messageSize)
+		raw = append(raw, buf.Bytes()...)
+
+		log.Debug().Msgf("Message recived: %v", raw)
+
+		s.handlerMessage(messageType, &raw)
+
 	}
 }
 
-func checkErrorMessage(err error) bool {
-	if err == io.EOF {
-		log.Info().Msg("Connection closed")
-		return false
-	} else if err != nil {
-		log.Err(err).Msg("Error to read message")
-		return false
+func (s ServerTCP) handlerMessage(messageType uint8, message *[]byte) {
+	switch messageType {
+	case MESSAGE_TYPE_TEXT:
+		messageText, err := UnWrapMessageText(message)
+		if err != nil {
+			log.Err(err).Msg("Error to unwrap message")
+			return
+		}
+
+		log.Info().Msgf("%s send to %s: %s %d", messageText.Origin, messageText.Target, messageText.Text, messageText.MessageLen)
+
+		s.sendMessageTo(messageText.Origin, messageText)
+
+	}
+}
+
+func (s ServerTCP) sendMessageTo(username string, message MessageInterface) {
+	// conn := s.Users[username].
+	user, ok := s.Users[username]
+	if !ok || user.MessageConn == nil {
+		log.Warn().Msgf("User %s not connected", username)
+		return
 	}
 
-	return true
+	conn := user.MessageConn
+	_, err := conn.Write(message.Wrap())
+	if err != nil {
+		log.Err(err).Msgf("Error to send message to %s", username)
+	}
 }

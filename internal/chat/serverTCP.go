@@ -86,8 +86,17 @@ func (s *ServerTCP) handleConnection(conn net.Conn) {
 		log.Debug().Msgf("Message recived: %v", raw)
 
 		s.handlerMessage(messageType, &raw, conn)
-
 	}
+
+	s.userMux.Lock()
+	for _, user := range s.Users {
+		if user.MessageConn == conn {
+			delete(s.Users, user.UserName)
+			log.Info().Msgf("User %s disconnected", user.UserName)
+			break
+		}
+	}
+	s.userMux.Unlock()
 }
 
 func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.Conn) {
@@ -132,7 +141,13 @@ func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.
 
 		log.Info().Msgf("%s send to %s: %s %d", messageText.Origin, messageText.Target, messageText.Text, messageText.MessageLen)
 
-		s.sendMessageTo(messageText.Origin, messageText)
+		if messageText.Target == MESSAGE_TARGET_ALL {
+			s.sendMessageToAll(messageText)
+			return
+		}
+
+		s.sendMessageTo(messageText.Target, messageText)
+
 	default:
 		log.Warn().Msgf("Message type %d not implemented", messageType)
 	}
@@ -153,4 +168,21 @@ func (s *ServerTCP) sendMessageTo(username string, message MessageInterface) {
 	if err != nil {
 		log.Err(err).Msgf("Error to send message to %s", username)
 	}
+}
+
+func (s *ServerTCP) sendMessageToAll(message MessageInterface) {
+	s.userMux.Lock()
+	for _, user := range s.Users {
+		if user.MessageConn == nil {
+			continue
+		}
+		user := user
+		go func() {
+			_, err := user.MessageConn.Write(message.Wrap())
+			if err != nil {
+				log.Err(err).Msgf("Error to send message to %s", user.UserName)
+			}
+		}()
+	}
+	s.userMux.Unlock()
 }

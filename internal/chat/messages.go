@@ -11,6 +11,10 @@ var (
 	ErrInvalidMessageType = errors.New("invalid message type")
 )
 
+const (
+	MESSAGE_TARGET_ALL = "ALL"
+)
+
 type MessageInterface interface {
 	// UnWrap(bytes *[]byte) Message
 	Wrap() []byte

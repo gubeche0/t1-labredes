@@ -54,9 +54,15 @@ func (c *ClientChat) Connect() error {
 			continue
 		}
 
+		if strings.TrimSpace(string(text)) == "STOP" {
+			fmt.Println("TCP client exiting...")
+
+			return errors.New("TCP client exiting")
+		}
+
 		msg := MessageText{
 			Origin: c.User,
-			Target: "all",
+			Target: MESSAGE_TARGET_ALL,
 			Text:   text,
 		}
 
@@ -66,11 +72,6 @@ func (c *ClientChat) Connect() error {
 			log.Fatal().Err(err).Msg("Error to send message")
 		}
 
-		if strings.TrimSpace(string(text)) == "STOP" {
-			fmt.Println("TCP client exiting...")
-
-			return errors.New("TCP client exiting")
-		}
 	}
 }
 
@@ -81,18 +82,13 @@ func (c ClientChat) listenMessage() {
 		var messageType uint8
 		var messageSize uint32
 		err := binary.Read(c.conn, binary.BigEndian, &messageType)
-		if !checkErrorMessageClient(err) {
-			break
-		}
+		checkErrorMessageClient(err)
+
 		err = binary.Read(c.conn, binary.BigEndian, &messageSize)
-		if !checkErrorMessageClient(err) {
-			break
-		}
+		checkErrorMessageClient(err)
 
 		_, err = io.CopyN(buf, c.conn, int64(messageSize-5)) // 5 bytes for message type and message size
-		if !checkErrorMessageClient(err) {
-			break
-		}
+		checkErrorMessageClient(err)
 
 		raw := make([]byte, 5, messageSize)
 		raw[0] = messageType

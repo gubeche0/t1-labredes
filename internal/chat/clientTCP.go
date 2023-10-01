@@ -30,6 +30,17 @@ func (c *ClientChat) Connect() error {
 
 	go c.listenMessage()
 
+	requestJoin := MessageRequestJoin{
+		UserName: c.User,
+	}
+
+	log.Debug().Msgf("Sending message: %v", requestJoin.Wrap())
+
+	_, err = conn.Write(requestJoin.Wrap())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error to send message")
+	}
+
 	for {
 		reader := bufio.NewReader(os.Stdin)
 		fmt.Print(">> ")
@@ -42,6 +53,7 @@ func (c *ClientChat) Connect() error {
 			Text:   text,
 		}
 
+		log.Debug().Msgf("Sending message: %v", msg.Wrap())
 		_, err := conn.Write(msg.Wrap())
 		if err != nil {
 			log.Fatal().Err(err).Msg("Error to send message")
@@ -61,7 +73,7 @@ func (c ClientChat) listenMessage() {
 		if err == io.EOF {
 			log.Fatal().Msg("Connection closed")
 		} else if err != nil {
-			fmt.Println(err)
+			log.Warn().Err(err).Msg("Error to read message")
 			return
 		}
 		if len(message) == 0 {

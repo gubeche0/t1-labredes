@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -29,17 +27,15 @@ type MessageText struct {
 }
 
 func (m MessageText) Wrap() []byte {
-	bytes := make([]byte, 0, 1+len(m.Text))
-
 	length := uint32(len(m.Text))
 	length += uint32(len(m.Origin))
 	length += uint32(len(m.Target))
-	length += 3
+	length += 8 // 3 bytes for \n delimiters, 1 byte for message type, 4 bytes for message length
+	// log.Debug().Msgf("Message length: %d", length)
 
-	log.Debug().Msgf("Message length: %d", length)
+	bytes := make([]byte, 0, int(length))
 
 	bytes = append(bytes, MESSAGE_TYPE_TEXT)
-
 	bytes = binary.BigEndian.AppendUint32(bytes, length)
 
 	bytes = append(bytes, []byte(m.Origin)...)
@@ -74,7 +70,7 @@ func UnWrapMessageText(rawMessage *[]byte) (*MessageText, error) {
 
 	msg.MessageLen = binary.BigEndian.Uint32((*rawMessage)[1:5])
 
-	reader := bufio.NewReader(bytes.NewReader((*rawMessage)[1:]))
+	reader := bufio.NewReader(bytes.NewReader((*rawMessage)[5:]))
 
 	origin, err := reader.ReadBytes('\n')
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 )
@@ -13,6 +14,7 @@ import (
 type ServerTCP struct {
 	// Protocol    Protocol
 	Users       map[string]connection
+	userMux     sync.Mutex
 	Address     string
 	MessagePort int
 	CommandPort int
@@ -31,6 +33,10 @@ func (s *ServerTCP) StartListenAndServer() error {
 
 		return err
 	}
+
+	defer serve.Close()
+
+	s.Users = make(map[string]connection)
 
 	for {
 		conn, err := serve.Accept()
@@ -67,25 +73,48 @@ func (s *ServerTCP) handleConnection(conn net.Conn) {
 		log.Debug().Msgf("Message size recived: %v", messageSize)
 
 		// message, err := bufio.NewReader(conn).ReadBytes('\n')
-		_, err = io.CopyN(buf, conn, int64(messageSize))
+		_, err = io.CopyN(buf, conn, int64(messageSize-5)) // 5 bytes for message type and message size
 		if !checkErrorMessage(err) {
 			break
 		}
 
-		raw := make([]byte, 5+messageSize)
+		raw := make([]byte, 5, messageSize)
 		raw[0] = messageType
 		binary.BigEndian.PutUint32(raw[1:], messageSize)
 		raw = append(raw, buf.Bytes()...)
 
 		log.Debug().Msgf("Message recived: %v", raw)
 
-		s.handlerMessage(messageType, &raw)
+		s.handlerMessage(messageType, &raw, conn)
 
 	}
 }
 
-func (s ServerTCP) handlerMessage(messageType uint8, message *[]byte) {
+func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.Conn) {
 	switch messageType {
+	case MESSAGE_TYPE_REQUEST_JOIN:
+		messageRequestJoin, err := UnWrapMessageRequestJoin(message)
+		if err != nil {
+			log.Err(err).Msg("Error to unwrap message")
+			return
+		}
+
+		log.Info().Msgf("User %s request join", messageRequestJoin.UserName)
+
+		if _, ok := s.Users[messageRequestJoin.UserName]; ok {
+			log.Warn().Msgf("User %s already connected", messageRequestJoin.UserName)
+
+			// TODO: Send error message
+			return
+		}
+
+		s.userMux.Lock()
+		s.Users[messageRequestJoin.UserName] = connection{
+			UserName:    messageRequestJoin.UserName,
+			MessageConn: conn,
+		}
+		s.userMux.Unlock()
+
 	case MESSAGE_TYPE_TEXT:
 		messageText, err := UnWrapMessageText(message)
 		if err != nil {
@@ -96,17 +125,20 @@ func (s ServerTCP) handlerMessage(messageType uint8, message *[]byte) {
 		log.Info().Msgf("%s send to %s: %s %d", messageText.Origin, messageText.Target, messageText.Text, messageText.MessageLen)
 
 		s.sendMessageTo(messageText.Origin, messageText)
-
+	default:
+		log.Warn().Msgf("Message type %d not implemented", messageType)
 	}
 }
 
-func (s ServerTCP) sendMessageTo(username string, message MessageInterface) {
-	// conn := s.Users[username].
+func (s *ServerTCP) sendMessageTo(username string, message MessageInterface) {
+	s.userMux.Lock()
 	user, ok := s.Users[username]
 	if !ok || user.MessageConn == nil {
 		log.Warn().Msgf("User %s not connected", username)
+		log.Debug().Msgf("Users: %v", s.Users)
 		return
 	}
+	s.userMux.Unlock()
 
 	conn := user.MessageConn
 	_, err := conn.Write(message.Wrap())

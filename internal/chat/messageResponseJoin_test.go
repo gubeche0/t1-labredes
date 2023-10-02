@@ -6,16 +6,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWrapAndUnWrapMessageResponseJoin(t *testing.T) {
+func TestWrapAndUnWrapMessageJoinRequestResponse(t *testing.T) {
 
-	msg := MessageResponseJoin{
+	msg := MessageJoinRequestResponse{
 		UserName:  "UserName_qualquer",
 		Succeeded: true,
 	}
 
 	bytes := msg.Wrap()
 
-	msgUnwrap, err := UnWrapMessageResponseJoin(&bytes)
+	msgUnwrap, err := UnWrapMessageJoinRequestResponse(&bytes)
 
 	assert.Nil(t, err)
 	assert.Equal(t, msg.UserName, msgUnwrap.UserName)

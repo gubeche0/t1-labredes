@@ -2,10 +2,7 @@ package chat
 
 import (
 	"bufio"
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strings"
@@ -15,6 +12,7 @@ import (
 
 type ClientChat struct {
 	conn        net.Conn
+	CommandConn net.Conn
 	User        string
 	Address     string
 	MessagePort int
@@ -22,6 +20,17 @@ type ClientChat struct {
 }
 
 func (c *ClientChat) Connect() error {
+	commandConn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.Address, c.CommandPort))
+	if err != nil {
+		log.Fatal().Msgf("Error to connect: %s", err.Error())
+	}
+	defer commandConn.Close()
+	c.CommandConn = commandConn
+
+	c.requestUserName()
+
+	go c.listenCommandMessage()
+
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", c.Address, c.MessagePort))
 	if err != nil {
 		log.Fatal().Msgf("Error to connect: %s", err.Error())
@@ -31,7 +40,7 @@ func (c *ClientChat) Connect() error {
 
 	go c.listenMessage()
 
-	requestJoin := MessageRequestJoin{
+	requestJoin := MessageJoin{
 		UserName: c.User,
 	}
 
@@ -52,40 +61,67 @@ func (c *ClientChat) Connect() error {
 	}
 }
 
-func (c ClientChat) listenMessage() {
-	for {
-		buf := new(bytes.Buffer)
+func (c ClientChat) requestUserName() {
+	requestJoin := MessageJoinRequest{
+		UserName: c.User,
+	}
+	log.Debug().Msgf("Request join with user: %s", c.User)
 
-		var messageType uint8
-		var messageSize uint64
-		err := binary.Read(c.conn, binary.BigEndian, &messageType)
-		checkErrorMessageClient(err)
+	_, err := c.CommandConn.Write(requestJoin.Wrap())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error to send message")
+	}
 
-		err = binary.Read(c.conn, binary.BigEndian, &messageSize)
-		checkErrorMessageClient(err)
+	raw, err := reciveMessage(c.CommandConn)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error to recive message")
+	}
 
-		_, err = io.CopyN(buf, c.conn, int64(messageSize-9)) // 9 bytes for message type(1) and message size(8)
-		checkErrorMessageClient(err)
+	msg, err := UnWrapMessageJoinRequestResponse(raw)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error to unwrap message")
+	}
 
-		raw := make([]byte, 9, messageSize)
-		raw[0] = messageType
-		binary.BigEndian.PutUint64(raw[1:], messageSize)
-		raw = append(raw, buf.Bytes()...)
-
-		log.Debug().Msgf("Message recived: %v", raw)
-
-		c.handlerMessage(messageType, &raw)
+	if !msg.Succeeded {
+		log.Fatal().Msgf("Error to request join with user: %s", c.User)
 	}
 }
 
-func (c ClientChat) HandleControllerMessage() {
+func (c ClientChat) listenMessage() {
+	for {
+		raw, err := reciveMessage(c.conn)
+		checkErrorMessageClient(err)
 
+		log.Debug().Msgf("Message recived: %v", raw)
+
+		c.handlerMessage((*raw)[0], raw)
+	}
+}
+
+func (c ClientChat) listenCommandMessage() {
+	for {
+		raw, err := reciveMessage(c.CommandConn)
+		if !checkErrorMessage(err) {
+			break
+		}
+
+		log.Debug().Msgf("Command message recived: %v", raw)
+
+		c.HandleCommandMessage((*raw)[0], raw)
+	}
+}
+
+func (c ClientChat) HandleCommandMessage(messageType uint8, message *[]byte) {
+	switch messageType {
+	default:
+		log.Warn().Msgf("Command message type %d not implemented", messageType)
+	}
 }
 
 func (c ClientChat) handlerMessage(messageType uint8, message *[]byte) {
 	switch messageType {
-	case MESSAGE_TYPE_RESPONSE_JOIN:
-		msg, err := UnWrapMessageResponseJoin(message)
+	case MESSAGE_TYPE_JOIN_REQUEST_RESPONSE:
+		msg, err := UnWrapMessageJoinRequestResponse(message)
 		if err != nil {
 			log.Warn().Err(err).Msg("Error to unwrap message")
 			return
@@ -144,7 +180,7 @@ func (c ClientChat) handlerInput(text string) {
 	c.SendMessage(msg)
 }
 
-func (c ClientChat) handleCommand(text string) {
+func (c *ClientChat) handleCommand(text string) {
 	command := strings.TrimSpace(text[1:])
 	command = strings.ToLower(command)
 	commandArgs := strings.Split(command, " ")
@@ -159,6 +195,8 @@ func (c ClientChat) handleCommand(text string) {
 	case "exit":
 		log.Info().Msg("TCP client exiting...")
 		os.Exit(0)
+	case "close":
+		c.CommandConn.Close()
 	case "help":
 		c.handleCommandHelp()
 	default:

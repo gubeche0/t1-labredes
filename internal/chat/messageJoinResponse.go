@@ -2,19 +2,19 @@ package chat
 
 import "encoding/binary"
 
-type MessageResponseJoin struct {
+type MessageJoinResponse struct {
 	MessageLen uint64
 	UserName   string
 	Succeeded  bool
 }
 
-func (m MessageResponseJoin) Wrap() []byte {
+func (m MessageJoinResponse) Wrap() []byte {
 	length := uint64(len(m.UserName))
 	length += 11 // 1 byte for message type, 8 bytes for message length, 1 byte for \n delimiter, 1 byte for succeeded
 
 	bytes := make([]byte, 0, length)
 
-	bytes = append(bytes, byte(MESSAGE_TYPE_RESPONSE_JOIN))
+	bytes = append(bytes, byte(MESSAGE_TYPE_JOIN_RESPONSE))
 	bytes = binary.BigEndian.AppendUint64(bytes, length)
 
 	bytes = append(bytes, []byte(m.UserName)...)
@@ -29,15 +29,15 @@ func (m MessageResponseJoin) Wrap() []byte {
 	return bytes
 }
 
-func (m MessageResponseJoin) GetType() uint8 {
-	return MESSAGE_TYPE_RESPONSE_JOIN
+func (m MessageJoinResponse) GetType() uint8 {
+	return MESSAGE_TYPE_JOIN_RESPONSE
 }
 
-func UnWrapMessageResponseJoin(rawMessage *[]byte) (*MessageResponseJoin, error) {
-	var msg MessageResponseJoin
+func UnWrapMessageJoinResponse(rawMessage *[]byte) (*MessageJoinRequestResponse, error) {
+	var msg MessageJoinRequestResponse
 
 	messageType := (*rawMessage)[0]
-	if uint8(messageType) != MESSAGE_TYPE_RESPONSE_JOIN {
+	if uint8(messageType) != MESSAGE_TYPE_JOIN_RESPONSE {
 		return nil, ErrInvalidMessageType
 	}
 

@@ -2,19 +2,19 @@ package chat
 
 import "encoding/binary"
 
-type MessageRequestJoin struct {
+type MessageJoin struct {
 	MessageLen uint64
 	UserName   string
 }
 
-func (m MessageRequestJoin) Wrap() []byte {
+func (m MessageJoin) Wrap() []byte {
 
 	length := uint64(len(m.UserName))
 	length += 10 // 1 byte for message type, 8 bytes for message length, 1 byte for \n delimiter
 
 	bytes := make([]byte, 0, length)
 
-	bytes = append(bytes, byte(MESSAGE_TYPE_REQUEST_JOIN))
+	bytes = append(bytes, byte(MESSAGE_TYPE_JOIN))
 	bytes = binary.BigEndian.AppendUint64(bytes, length)
 
 	bytes = append(bytes, []byte(m.UserName)...)
@@ -23,15 +23,15 @@ func (m MessageRequestJoin) Wrap() []byte {
 	return bytes
 }
 
-func (m MessageRequestJoin) GetType() uint8 {
-	return MESSAGE_TYPE_REQUEST_JOIN
+func (m MessageJoin) GetType() uint8 {
+	return MESSAGE_TYPE_JOIN
 }
 
-func UnWrapMessageRequestJoin(rawMessage *[]byte) (*MessageRequestJoin, error) {
-	var msg MessageRequestJoin
+func UnWrapMessageJoin(rawMessage *[]byte) (*MessageJoinRequest, error) {
+	var msg MessageJoinRequest
 
 	messageType := (*rawMessage)[0]
-	if uint8(messageType) != MESSAGE_TYPE_REQUEST_JOIN {
+	if uint8(messageType) != MESSAGE_TYPE_JOIN {
 		return nil, ErrInvalidMessageType
 	}
 

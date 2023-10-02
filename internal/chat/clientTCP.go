@@ -57,19 +57,19 @@ func (c ClientChat) listenMessage() {
 		buf := new(bytes.Buffer)
 
 		var messageType uint8
-		var messageSize uint32
+		var messageSize uint64
 		err := binary.Read(c.conn, binary.BigEndian, &messageType)
 		checkErrorMessageClient(err)
 
 		err = binary.Read(c.conn, binary.BigEndian, &messageSize)
 		checkErrorMessageClient(err)
 
-		_, err = io.CopyN(buf, c.conn, int64(messageSize-5)) // 5 bytes for message type and message size
+		_, err = io.CopyN(buf, c.conn, int64(messageSize-9)) // 9 bytes for message type(1) and message size(8)
 		checkErrorMessageClient(err)
 
-		raw := make([]byte, 5, messageSize)
+		raw := make([]byte, 9, messageSize)
 		raw[0] = messageType
-		binary.BigEndian.PutUint32(raw[1:], messageSize)
+		binary.BigEndian.PutUint64(raw[1:], messageSize)
 		raw = append(raw, buf.Bytes()...)
 
 		log.Debug().Msgf("Message recived: %v", raw)

@@ -59,7 +59,7 @@ func (s *ServerTCP) handleConnection(conn net.Conn) {
 		buf := new(bytes.Buffer)
 
 		var messageType uint8
-		var messageSize uint32
+		var messageSize uint64
 		err := binary.Read(conn, binary.BigEndian, &messageType)
 		if !checkErrorMessage(err) {
 			break
@@ -73,14 +73,14 @@ func (s *ServerTCP) handleConnection(conn net.Conn) {
 		log.Debug().Msgf("Message size recived: %v", messageSize)
 
 		// message, err := bufio.NewReader(conn).ReadBytes('\n')
-		_, err = io.CopyN(buf, conn, int64(messageSize-5)) // 5 bytes for message type and message size
+		_, err = io.CopyN(buf, conn, int64(messageSize-9)) // 9 bytes for message type (1) and message size (8)
 		if !checkErrorMessage(err) {
 			break
 		}
 
-		raw := make([]byte, 5, messageSize)
+		raw := make([]byte, 9, messageSize)
 		raw[0] = messageType
-		binary.BigEndian.PutUint32(raw[1:], messageSize)
+		binary.BigEndian.PutUint64(raw[1:], messageSize)
 		raw = append(raw, buf.Bytes()...)
 
 		log.Debug().Msgf("Message recived: %v", raw)
@@ -174,15 +174,16 @@ func (s *ServerTCP) sendMessageToAll(message MessageInterface) {
 	s.userMux.Lock()
 	for _, user := range s.Users {
 		if user.MessageConn == nil {
+			log.Warn().Msgf("User %s not connected", user.UserName)
 			continue
 		}
 		user := user
-		go func() {
-			_, err := user.MessageConn.Write(message.Wrap())
-			if err != nil {
-				log.Err(err).Msgf("Error to send message to %s", user.UserName)
-			}
-		}()
+		// go func() {
+		_, err := user.MessageConn.Write(message.Wrap())
+		if err != nil {
+			log.Err(err).Msgf("Error to send message to %s", user.UserName)
+		}
+		// }()
 	}
 	s.userMux.Unlock()
 }

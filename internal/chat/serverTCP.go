@@ -139,7 +139,7 @@ func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.
 			return
 		}
 
-		log.Info().Msgf("%s send to %s: %s %d", messageText.Origin, messageText.Target, messageText.Text, messageText.MessageLen)
+		log.Info().Msgf("%s send to %s: %s", messageText.Origin, messageText.Target, messageText.Text)
 
 		if messageText.Target == MESSAGE_TARGET_ALL {
 			s.sendMessageToAll(messageText)

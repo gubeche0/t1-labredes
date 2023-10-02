@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -48,30 +47,8 @@ func (c *ClientChat) Connect() error {
 		fmt.Print(">> ")
 
 		text, _ := reader.ReadString('\n')
-		if len(text) == 0 {
-			continue
-		} else if len(text) == 1 && text[0] == '\n' {
-			continue
-		}
 
-		if strings.TrimSpace(string(text)) == "STOP" {
-			fmt.Println("TCP client exiting...")
-
-			return errors.New("TCP client exiting")
-		}
-
-		msg := MessageText{
-			Origin: c.User,
-			Target: MESSAGE_TARGET_ALL,
-			Text:   text,
-		}
-
-		log.Debug().Msgf("Sending message: %v", msg.Wrap())
-		_, err := conn.Write(msg.Wrap())
-		if err != nil {
-			log.Fatal().Err(err).Msg("Error to send message")
-		}
-
+		c.handlerInput(text)
 	}
 }
 
@@ -139,17 +116,65 @@ func (c ClientChat) handlerMessage(messageType uint8, message *[]byte) {
 }
 
 func (c ClientChat) SendMessage(message MessageInterface) {
-
+	log.Debug().Msgf("Sending message: %v", message.Wrap())
+	_, err := c.conn.Write(message.Wrap())
+	if err != nil {
+		log.Fatal().Err(err).Msg("Error to send message")
+	}
 }
 
-func checkErrorMessageClient(err error) bool {
-	if err == io.EOF {
-		log.Fatal().Msg("Connection closed")
-		return false
-	} else if err != nil {
-		log.Err(err).Msg("Error to read message")
-		return false
+func (c ClientChat) handlerInput(text string) {
+	if len(text) == 0 {
+		return
+	} else if len(text) == 1 && text[0] == '\n' {
+		return
 	}
 
-	return true
+	if strings.HasPrefix(text, "/") {
+		c.handleCommand(text)
+		return
+	}
+
+	msg := MessageText{
+		Origin: c.User,
+		Target: MESSAGE_TARGET_ALL,
+		Text:   text,
+	}
+
+	c.SendMessage(msg)
+}
+
+func (c ClientChat) handleCommand(text string) {
+	command := strings.TrimSpace(text[1:])
+	command = strings.ToLower(command)
+	commandArgs := strings.Split(command, " ")
+
+	switch commandArgs[0] {
+	// case "listusers":
+	// c.handleCommandList()
+	// case "sendprivate":
+	// c.handleSendPrivate(commandArgs)
+	// case "sendfile":
+	// c.handleCommandSendFile(commandArgs)
+	case "exit":
+		log.Info().Msg("TCP client exiting...")
+		os.Exit(0)
+	case "help":
+		c.handleCommandHelp()
+	default:
+		log.Warn().Msgf("Command %s not implemented", commandArgs[0])
+	}
+}
+
+// func (c ClientChat) handleCommandList() {}
+// func (c ClientChat) handleSendPrivate(commandArgs []string) {}
+// func (c ClientChat) handleCommandSendFile(commandArgs []string) {}
+
+func (c ClientChat) handleCommandHelp() {
+	fmt.Println("Help commands:")
+	fmt.Println("  /listUsers")
+	fmt.Println("  /sendPrivate <user> <message>")
+	fmt.Println("  /sendFile <user> <file>")
+	fmt.Println("  /exit")
+	fmt.Println("  /help")
 }

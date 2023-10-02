@@ -17,3 +17,15 @@ func checkErrorMessage(err error) bool {
 
 	return true
 }
+
+func checkErrorMessageClient(err error) bool {
+	if err == io.EOF {
+		log.Fatal().Msg("Connection closed")
+		return false
+	} else if err != nil {
+		log.Err(err).Msg("Error to read message")
+		return false
+	}
+
+	return true
+}

@@ -2,7 +2,9 @@ package chat
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strings"
@@ -46,7 +48,8 @@ func (c *ClientChat) Connect() error {
 
 	log.Debug().Msgf("Sending message: %v", requestJoin.Wrap())
 
-	_, err = conn.Write(requestJoin.Wrap())
+	reader := bytes.NewReader(requestJoin.Wrap())
+	_, err = io.Copy(conn, reader)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error to send message")
 	}
@@ -166,7 +169,9 @@ func (c ClientChat) handlerMessage(messageType uint8, message *[]byte) {
 
 func (c ClientChat) SendMessage(message MessageInterface) {
 	log.Debug().Msgf("Sending message: %v", message.Wrap())
-	_, err := c.conn.Write(message.Wrap())
+
+	reader := bytes.NewReader(message.Wrap())
+	_, err := io.Copy(c.conn, reader)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error to send message")
 	}
@@ -195,14 +200,13 @@ func (c ClientChat) handlerInput(text string) {
 
 func (c *ClientChat) handleCommand(text string) {
 	command := strings.TrimSpace(text[1:])
-	command = strings.ToLower(command)
 	commandArgs := strings.Split(command, " ")
 
-	switch commandArgs[0] {
-	// case "listusers":
-	// c.handleCommandList()
-	// case "sendprivate":
-	// c.handleSendPrivate(commandArgs)
+	command = strings.ToLower(commandArgs[0])
+
+	switch command {
+	case "sendprivate":
+		c.handleSendPrivate(commandArgs)
 	// case "sendfile":
 	// c.handleCommandSendFile(commandArgs)
 	case "exit":
@@ -224,7 +228,23 @@ func (c *ClientChat) handleCommand(text string) {
 }
 
 // func (c ClientChat) handleCommandList() {}
-// func (c ClientChat) handleSendPrivate(commandArgs []string) {}
+
+func (c ClientChat) handleSendPrivate(commandArgs []string) {
+	if len(commandArgs) < 3 {
+		log.Warn().Msg("Invalid arguments")
+		return
+	}
+
+	destination := commandArgs[1]
+	text := strings.Join(commandArgs[2:], " ")
+
+	c.SendMessage(MessageText{
+		Origin: c.User,
+		Target: destination,
+		Text:   text,
+	})
+}
+
 // func (c ClientChat) handleCommandSendFile(commandArgs []string) {}
 
 func (c ClientChat) handleCommandHelp() {

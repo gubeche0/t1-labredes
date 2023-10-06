@@ -1,7 +1,9 @@
 package chat
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 
@@ -192,8 +194,7 @@ func (s *ServerTCP) sendMessageTo(username string, message MessageInterface) {
 	}
 	s.userMux.Unlock()
 
-	conn := user.MessageConn
-	_, err := conn.Write(message.Wrap())
+	_, err := io.Copy(user.MessageConn, bytes.NewReader(message.Wrap()))
 	if err != nil {
 		log.Err(err).Msgf("Error to send message to %s", username)
 	}
@@ -210,7 +211,7 @@ func (s *ServerTCP) sendMessageToAll(message MessageInterface) {
 		}
 		user := user
 		go func() {
-			_, err := user.MessageConn.Write(message.Wrap())
+			_, err := io.Copy(user.MessageConn, bytes.NewReader(message.Wrap()))
 			if err != nil {
 				log.Err(err).Msgf("Error to send message to %s", user.UserName)
 			}
@@ -299,8 +300,7 @@ func (s *ServerTCP) sendCommandMessageTo(username string, message MessageInterfa
 	}
 	s.userMux.Unlock()
 
-	conn := user.CommandConn
-	_, err := conn.Write(message.Wrap())
+	_, err := io.Copy(user.CommandConn, bytes.NewReader(message.Wrap()))
 	if err != nil {
 		log.Err(err).Msgf("Error to send message to %s", username)
 	}

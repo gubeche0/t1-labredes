@@ -145,6 +145,19 @@ func (c ClientChat) handlerMessage(messageType uint8, message *[]byte) {
 
 		fmt.Printf("%s: %s\n", msg.Origin, msg.Text)
 
+	case MESSAGE_TYPE_LIST_USERS_RESPONSE:
+		msg, err := UnWrapMessageListUserResponse(message)
+		if err != nil {
+			log.Warn().Err(err).Msg("Error to unwrap message")
+			return
+		}
+
+		log.Debug().Msgf("Users: %v", msg.Users)
+		fmt.Println("Users:")
+		for _, user := range msg.Users {
+			fmt.Println("  ", user)
+		}
+
 	default:
 		log.Warn().Msgf("Message type %d not implemented", messageType)
 	}
@@ -195,10 +208,16 @@ func (c *ClientChat) handleCommand(text string) {
 	case "exit":
 		log.Info().Msg("TCP client exiting...")
 		os.Exit(0)
-	case "close":
-		c.CommandConn.Close()
+	// case "close":
+	// 	c.CommandConn.Close()
+	case "listusers":
+		c.SendMessage(MessageListUser{
+			origin: c.User,
+		})
 	case "help":
 		c.handleCommandHelp()
+	case "clear":
+		fmt.Print("\033[H\033[2J")
 	default:
 		log.Warn().Msgf("Command %s not implemented", commandArgs[0])
 	}
@@ -215,4 +234,5 @@ func (c ClientChat) handleCommandHelp() {
 	fmt.Println("  /sendFile <user> <file>")
 	fmt.Println("  /exit")
 	fmt.Println("  /help")
+	fmt.Println("  /clear")
 }

@@ -154,6 +154,28 @@ func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.
 
 		s.sendMessageTo(messageText.Target, messageText)
 
+	case MESSAGE_TYPE_LIST_USERS:
+		messageListUser, err := UnWrapMessageListUser(message)
+		if err != nil {
+			log.Err(err).Msg("Error to unwrap message")
+			return
+		}
+
+		log.Info().Msgf("User %s request list users", messageListUser.origin)
+
+		users := make([]string, 0)
+		s.userMux.Lock()
+		for _, user := range s.Users {
+			users = append(users, user.UserName)
+		}
+		s.userMux.Unlock()
+
+		log.Debug().Msgf("Users: %v", users)
+
+		s.sendMessageTo(messageListUser.origin, MessageListUserResponse{
+			Users: users,
+		})
+
 	default:
 		log.Warn().Msgf("Message type %d not implemented", messageType)
 	}
@@ -175,6 +197,8 @@ func (s *ServerTCP) sendMessageTo(username string, message MessageInterface) {
 	if err != nil {
 		log.Err(err).Msgf("Error to send message to %s", username)
 	}
+
+	log.Debug().Msgf("Message sent to %s: %v", username, message.Wrap())
 }
 
 func (s *ServerTCP) sendMessageToAll(message MessageInterface) {

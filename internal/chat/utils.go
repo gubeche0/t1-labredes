@@ -63,3 +63,19 @@ func reciveMessage(conn net.Conn) (*[]byte, error) {
 
 	return &raw, nil
 }
+
+func reciveMessageUDP(conn *net.UDPConn) (*[]byte, *net.UDPAddr, error) {
+
+	buff := make([]byte, 2048)
+
+	n, addr, err := conn.ReadFromUDP(buff)
+	if err != nil {
+		// log.Warn().Err(err).Msg("Error to read message")
+		return nil, nil, err
+	}
+
+	raw := make([]byte, n)
+	copy(raw, buff[:n])
+
+	return &raw, addr, nil
+}

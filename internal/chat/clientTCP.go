@@ -161,6 +161,40 @@ func (c ClientChat) handlerMessage(messageType uint8, message *[]byte) {
 			fmt.Println("  ", user)
 		}
 
+	case MESSAGE_TYPE_FILE:
+		msg, err := UnWrapMessageFile(message)
+		if err != nil {
+			log.Warn().Err(err).Msg("Error to unwrap message")
+			return
+		}
+
+		if msg.Origin == c.User {
+			return
+		}
+
+		dir := fmt.Sprintf("./dl-%s", c.User)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			err = os.Mkdir(dir, 0755)
+			if err != nil {
+				log.Warn().Err(err).Msg("Error to create directory")
+				return
+			}
+		}
+
+		file, err := os.Create(fmt.Sprintf("%s/%s", dir, msg.Filename))
+		if err != nil {
+			log.Warn().Err(err).Msg("Error to create file")
+			return
+		}
+
+		_, err = file.Write(msg.Filedata)
+		if err != nil {
+			log.Warn().Err(err).Msg("Error to write file")
+			return
+		}
+
+		log.Info().Msgf("File %s received from %s", msg.Filename, msg.Origin)
+
 	default:
 		log.Warn().Msgf("Message type %d not implemented", messageType)
 	}
@@ -207,8 +241,10 @@ func (c *ClientChat) handleCommand(text string) {
 	switch command {
 	case "sendprivate":
 		c.handleSendPrivate(commandArgs)
-	// case "sendfile":
-	// c.handleCommandSendFile(commandArgs)
+	case "sendfile":
+		c.handleCommandSendFile(commandArgs)
+	case "sendfileto":
+		c.handleCommandSendFile(commandArgs)
 	case "exit":
 		log.Info().Msg("TCP client exiting...")
 		os.Exit(0)
@@ -245,13 +281,67 @@ func (c ClientChat) handleSendPrivate(commandArgs []string) {
 	})
 }
 
-// func (c ClientChat) handleCommandSendFile(commandArgs []string) {}
+func (c ClientChat) handleCommandSendFile(commandArgs []string) {
+	if commandArgs[0] == "sendfile" && len(commandArgs) < 2 {
+		log.Warn().Msg("Invalid arguments")
+		return
+	} else if commandArgs[0] == "sendfileto" && len(commandArgs) < 3 {
+		log.Warn().Msg("Invalid arguments")
+		return
+	}
+
+	target := MESSAGE_TARGET_ALL
+	upload := commandArgs[1]
+	if commandArgs[0] == "sendfileto" {
+		target = commandArgs[1]
+		upload = commandArgs[2]
+
+	}
+
+	file, err := os.Open(upload)
+	if err != nil {
+		log.Warn().Err(err).Msg("Error to open file")
+		return
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		log.Warn().Err(err).Msg("Error to get file info")
+		return
+	}
+
+	fileData := make([]byte, fileInfo.Size())
+	_, err = file.Read(fileData)
+	if err != nil {
+		log.Warn().Err(err).Msg("Error to read file")
+		return
+	}
+
+	filename := fileInfo.Name()
+	filename = strings.ReplaceAll(filename, "\n", "")
+	filename = strings.ReplaceAll(filename, "\r", "")
+	filename = strings.ReplaceAll(filename, "\t", "")
+
+	msg := MessageFile{
+		Origin:   c.User,
+		Target:   target,
+		Filename: filename,
+		Filesize: uint64(fileInfo.Size()),
+		Filedata: fileData,
+	}
+
+	// log.Debug().Msgf("Sending file: %v", msg)
+
+	c.SendMessage(msg)
+}
 
 func (c ClientChat) handleCommandHelp() {
 	fmt.Println("Help commands:")
 	fmt.Println("  /listUsers")
 	fmt.Println("  /sendPrivate <user> <message>")
-	fmt.Println("  /sendFile <user> <file>")
+	fmt.Println("  /sendFile <file>")
+	fmt.Println("  /sendFileTo <user> <file>")
 	fmt.Println("  /exit")
 	fmt.Println("  /help")
 	fmt.Println("  /clear")

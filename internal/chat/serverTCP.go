@@ -178,6 +178,22 @@ func (s *ServerTCP) handlerMessage(messageType uint8, message *[]byte, conn net.
 			Users: users,
 		})
 
+	case MESSAGE_TYPE_FILE:
+		messageFile, err := UnWrapMessageFile(message)
+		if err != nil {
+			log.Err(err).Msg("Error to unwrap message")
+			return
+		}
+
+		log.Info().Msgf("%s send to %s: %s with %d bytes", messageFile.Origin, messageFile.Target, messageFile.Filename, messageFile.Filesize)
+
+		if messageFile.Target == MESSAGE_TARGET_ALL {
+			s.sendMessageToAll(messageFile)
+			return
+		}
+
+		s.sendMessageTo(messageFile.Target, messageFile)
+
 	default:
 		log.Warn().Msgf("Message type %d not implemented", messageType)
 	}

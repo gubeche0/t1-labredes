@@ -96,11 +96,3 @@ func UnWrapMessageText(rawMessage *[]byte) (*MessageText, error) {
 
 	return &msg, nil
 }
-
-type MessageFile struct {
-	Origin   string
-	Target   string
-	Filename string
-	Filesize uint32
-	Filedata []byte
-}

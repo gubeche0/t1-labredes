@@ -20,5 +20,5 @@ func TestWrapAndUnWrapMessageJoinRequestResponse(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, msg.UserName, msgUnwrap.UserName)
 	assert.Equal(t, msg.Succeeded, msgUnwrap.Succeeded)
-	assert.Equal(t, uint32(0x18), msgUnwrap.MessageLen)
+	assert.Equal(t, uint64(0x1c), msgUnwrap.MessageLen)
 }
